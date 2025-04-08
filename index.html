@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+            <title>Model Viewer - AR360.io</title>
+        <style>
+        html:not(.ready) [type=reset],html:not(.ready) [type=submit] {
+            pointer-events: none
+        }
+
+        html:not(.ready) * {
+            transition: none!important
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width:100%;
+            height:100%;
+            font-family: Open Sans,sans-serif;
+        }
+    </style>
+    <style>
+        .hotspot {
+            display: block;
+            padding: 0;
+            margin: 0;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,.8);
+            border: 1px solid #dfdfdf;
+            color: #ffff;
+            cursor: pointer;
+        }
+
+        .hotspot:after {
+            content: attr(data-slot);
+            font-size: 12px;
+        }
+
+        .annotation {
+            position: absolute;
+            padding: 10px;
+            text-align: left;
+            transform: translate(30px, 0px);
+            font-family: Open Sans,sans-serif;
+            color: #fff;
+            cursor: auto;
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
+            background: rgba(0,0,0,.8);
+            border-radius: 4px;
+            max-width: 200px;
+        }
+
+        .hotspot.selected {
+            background-color: rgba(0,0,0,.8);
+            border: 1px solid white;
+        }
+
+        .hotspot:not(.selected) > .annotation {
+            display: none;
+        }
+        .viewer .loading-container {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 1000;
+            pointer-events: none;
+            perspective: 1000px;
+            perspective-origin: 50%;
+            transform-style: preserve-3d;
+        }
+        .viewer.model-loaded .main-progress {
+            opacity: 0;
+            transform: translateZ(200px);
+        }
+        .viewer .main-progress {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            opacity: 1;
+            transition: all .25s ease-in-out;
+            transform: translateZ(0);
+        }
+        .viewer:not(.transparent) .main-progress {
+            background: #222;
+        }
+        .viewer .main-progress .loading-thumbnail {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            height: 110%;
+            filter: blur(20px);
+            transform: translate(-50%,-50%);
+        }
+        .viewer .main-progress-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            display: flex;
+            width: 100%;
+            height: 100%;
+            flex-flow: column wrap;
+            justify-content: center;
+        }
+        .viewer .main-progress-wrapper {
+            background: rgba(0,0,0,.6);
+        }
+        .viewer .main-progress-display, .viewer .main-progress-percentage {
+            width: 100%;
+        }
+        .viewer .main-progress-percentage {
+            display: none;
+            font-family: Open Sans,sans-serif;
+            font-size: 18px;
+            font-weight: 400;
+            color: #fff;
+            text-align: center;
+        }
+        .viewer .main-progress-wrapper p {
+            color: #ccc;
+            text-align: center;
+            text-shadow: 0 -1px #000;
+            margin: 16px 0;
+        }
+        .viewer .main-progress-display {
+            width: 200px;
+            height: 4px;
+            margin: 0 auto;
+            background-color: #555;
+            border: none;
+            border-radius: 2px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        .viewer .main-progress-display__progress {
+            height: 4px;
+            width: 0;
+            background-color: #ffffff;
+            border-radius: 2px;
+            transition: width .2s ease;
+        }
+
+        .animation-play {
+            position: absolute;
+            z-index: 100;
+            left: 15px;
+            bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            background-color: #fff;
+            box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.15);
+            border-radius: 100px;
+        }
+        .animation-play span {
+            display: block;
+            background: url('https://ar360.io/images/icon-play-pause.svg') center center no-repeat;
+            background-size: 17px;
+            width: 40px;
+            height: 40px;
+        }
+        .animation-rewind {
+            position: absolute;
+            z-index: 100;
+            left: 65px;
+            bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            background-color: #fff;
+            box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.15);
+            border-radius: 100px;
+        }
+        .animation-rewind span {
+            display: block;
+            background: url('https://ar360.io/images/icon-rewind.svg') center center no-repeat;
+            background-size: 32px;
+            width: 40px;
+            height: 40px;
+        }
+
+
+
+    </style>
+    <link rel="stylesheet" href=" https://ar360.io/css/ar360.css"/>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+</head>
+<body>
+
+<model-viewer
+    class="viewer"
+    style="width:100%;height:100%"
+    src="https://jasminnicola1.github.io/3D-Model/3D_Becher.glb"
+    enable-pan
+        min-field-of-view="1deg"
+    max-field-of-view="150deg"
+                         interaction-prompt="none"                             camera-controls
+
+    oncontextmenu="return false;"
+     alt="A 3D model">
+    <div class="loading-container">
+        <div class="main-progress ">
+            <img alt="Loading 3D Model" src="https://ar360.io/models/e1c7a8c8d9794f31842b7eeba5b6ec9e/thumbnail-mini.png" class="loading-thumbnail">
+            <div class="main-progress-wrapper">
+                <div class="main-progress-percentage loading-percentage">0%</div>
+                <p>Loading 3D model</p>
+                <div class="main-progress-display">
+                    <div class="main-progress-display__progress"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+</model-viewer>
+
+<script>
+    const modelViewer = document.querySelector("model-viewer");
+    const progressBar = document.querySelector('.main-progress-display__progress');
+    const animationPlay = document.querySelector(".animation-play");
+    const animationRewind = document.querySelector(".animation-rewind");
+
+    let selectedHotspot;
+    const tapDistance = 2;
+    let panning = false;
+    let panX, panY;
+    let startX, startY;
+    let lastX, lastY;
+    let metersPerPixel;
+    let arButtonClicked = false;
+
+    let loading = true;
+
+    const onProgress = (event) => {
+        if(loading) {
+            progressBar.style.width = `${event.detail.totalProgress * 100}%`;
+            if (event.detail.totalProgress === 1) {
+                loading = false;
+                modelViewer.classList.add('model-loaded');
+                document.documentElement.classList.add('ready');
+            }
+        }
+    };
+
+    modelViewer.addEventListener('progress', onProgress);
+
+    const startPan = () => {
+        const orbit = modelViewer.getCameraOrbit();
+        const {theta, phi, radius} = orbit;
+        const psi = theta - modelViewer.turntableRotation;
+        metersPerPixel = 0.75 * radius / modelViewer.getBoundingClientRect().height;
+        panX = [-Math.cos(psi), 0, Math.sin(psi)];
+        panY = [
+            -Math.cos(phi) * Math.sin(psi),
+            Math.sin(phi),
+            -Math.cos(phi) * Math.cos(psi)
+        ];
+        modelViewer.interactionPrompt = 'none';
+    };
+
+    const movePan = (thisX, thisY) => {
+        const dx = (thisX - lastX) * metersPerPixel;
+        const dy = (thisY - lastY) * metersPerPixel;
+        lastX = thisX;
+        lastY = thisY;
+
+        const target = modelViewer.getCameraTarget();
+        target.x += dx * panX[0] + dy * panY[0];
+        target.y += dx * panX[1] + dy * panY[1];
+        target.z += dx * panX[2] + dy * panY[2];
+        modelViewer.cameraTarget = `${target.x}m ${target.y}m ${target.z}m`;
+
+        // This pauses turntable rotation
+        modelViewer.dispatchEvent(new CustomEvent(
+            'camera-change', {detail: {source: 'user-interaction'}}));
+    };
+
+    const recenter = (pointer) => {
+        panning = false;
+        if (Math.abs(pointer.clientX - startX) > tapDistance ||
+            Math.abs(pointer.clientY - startY) > tapDistance)
+            return;
+        const hit = modelViewer.positionAndNormalFromPoint(pointer.clientX, pointer.clientY);
+        modelViewer.cameraTarget =
+            hit == null ? 'auto auto auto' : hit.position.toString();
+    };
+
+    modelViewer.addEventListener('mousedown', (event) => {
+
+        let offsetTop = modelViewer.offsetTop;
+        let offsetLeft = modelViewer.offsetLeft;
+        let offsetHeight = modelViewer.offsetHeight;
+        let offsetWidth = modelViewer.offsetWidth;
+        let pageX = event.pageX;
+        let pageY = event.pageY;
+        let offsetY = offsetHeight - pageY + offsetTop;
+        let offsetX = offsetWidth - pageX + offsetLeft;
+        if(offsetY < 60 && offsetX < 60) {
+            arButtonClicked = true;
+            return;
+        }
+        arButtonClicked = false;
+
+        startX = event.clientX;
+        startY = event.clientY;
+        panning = event.button === 2 || event.ctrlKey || event.metaKey ||
+            event.shiftKey;
+        if (!panning)
+            return;
+
+        lastX = startX;
+        lastY = startY;
+        startPan();
+        event.stopPropagation();
+    }, true);
+
+    /* disabled for side effects with new model-viewer
+
+    modelViewer.addEventListener('touchstart', (event) => {
+        const {targetTouches, touches} = event;
+
+        let offsetTop = modelViewer.offsetTop;
+        let offsetLeft = modelViewer.offsetLeft;
+        let offsetHeight = modelViewer.offsetHeight;
+        let offsetWidth = modelViewer.offsetWidth;
+        let pageX = targetTouches[0].pageX;
+        let pageY = targetTouches[0].pageY;
+        let offsetY = offsetHeight - pageY + offsetTop;
+        let offsetX = offsetWidth - pageX + offsetLeft;
+
+        if(offsetY < 60 && offsetX < 60){
+            arButtonClicked = true;
+            return;
+        }
+        arButtonClicked = false;
+
+        startX = targetTouches[0].clientX;
+        startY = targetTouches[0].clientY;
+
+        panning = targetTouches.length === 2 && targetTouches.length === touches.length;
+        if (!panning)
+            return;
+
+        lastX = 0.5 * (targetTouches[0].clientX + targetTouches[1].clientX);
+        lastY = 0.5 * (targetTouches[0].clientY + targetTouches[1].clientY);
+        startPan();
+    }, true);
+    */
+    self.addEventListener('mousemove', (event) => {
+        if (!panning)
+            return;
+
+        movePan(event.clientX, event.clientY);
+        event.stopPropagation();
+    }, true);
+
+    /* disabled for side effects with new model-viewer
+   modelViewer.addEventListener('touchmove', (event) => {
+       if (!panning || event.targetTouches.length !== 2)
+           return;
+
+       const {targetTouches} = event;
+       const thisX = 0.5 * (targetTouches[0].clientX + targetTouches[1].clientX);
+       const thisY = 0.5 * (targetTouches[0].clientY + targetTouches[1].clientY);
+       movePan(thisX, thisY);
+   }, true);
+   */
+
+   self.addEventListener('mouseup', (event) => {
+       if(arButtonClicked) return;
+       recenter(event);
+   }, true);
+
+    /* disabled for side effects with new model-viewer
+    modelViewer.addEventListener('touchend', (event) => {
+        if(arButtonClicked) return;
+        if (event.targetTouches.length === 0) {
+            recenter(event.changedTouches[0]);
+
+            if (event.cancelable) {
+                event.preventDefault();
+            }
+        }
+    }, true);*/
+
+
+
+
+
+    modelViewer.addEventListener('load', function(evt) {
+        for (let i = 0; i < modelViewer.children.length; i++) {
+            modelViewer.children[i].style.display = 'block';
+            modelViewer.children[i].addEventListener('click', (event) => {
+                event.stopPropagation();
+                select( modelViewer.children[i]);
+            });
+        }
+    })
+
+    function select(hotspot) {
+        hideSelectedHotspot();
+        hotspot.classList.add('selected');
+        selectedHotspot = hotspot;
+
+    }
+
+    document.addEventListener('click', function () {
+        hideSelectedHotspot()
+    })
+
+    function hideSelectedHotspot() {
+        if(selectedHotspot){
+            selectedHotspot.classList.remove('selected');
+            selectedHotspot = null;
+        }
+    }
+
+    if(animationPlay){
+        animationPlay.addEventListener('click', function(){
+            if (modelViewer.paused){
+                modelViewer.play();
+                console.log('play')
+            } else {
+                modelViewer.pause();
+                console.log('pause')
+            }
+
+        });
+    }
+
+    if(animationRewind){
+        animationRewind.addEventListener('click', function(){
+                let time = modelViewer.currentTime;
+                console.log(time);
+                if (time<5){
+                    time = 0
+                } else {
+                    time = time - 5;
+                }
+
+                modelViewer.currentTime = time
+                console.log('rewind 5')
+        });
+    }
+
+
+    /*function update() {
+        if (modelViewer?.getCameraOrbit) {
+            console.log(`${modelViewer.getCameraOrbit()} ${modelViewer.getFieldOfView()}`)
+        }
+        setTimeout(update, 1000)
+    }
+    update()*/
+
+</script>
+</body>
+</html>
