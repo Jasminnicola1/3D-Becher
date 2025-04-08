@@ -29,11 +29,18 @@
 /* Styling für das Logo */
 .logo {
     position: fixed;
-    bottom: 20px;
-    left: 20px; /* Auf der linken Seite */
-    width: 200px; /* Größe */
+    bottom: 23px;
+    left: 23px; /* Auf der linken Seite */
+    width: 200px; /* Standardgröße */
     height: auto;
     z-index: 100;
+}
+
+/* Für kleinere Geräte (z.B. Smartphones) */
+@media (max-width: 768px) {
+    .logo {
+        width: 80px; /* Kleinere Größe auf Handys */
+    }
 }
 
 
